@@ -6,16 +6,21 @@ import sqlite3
 bot = telebot.TeleBot('7016733305:AAES3DPE1D0QuUbzkQtkXz8IazclmxwqymU')
 description = None
 task_num = None
+comment = None
 
 
 # =================СОЗДАНИЕ ЗАДАЧ==================
 @bot.message_handler(commands=['add'])
 def start(message):
     # создается таблица в базе и запрашивается отписание задачи
-    conn = sqlite3.Connection('data.sqlite3')
+    conn = sqlite3.Connection('task_data.sqlite3')
     cur = conn.cursor()
 
-    cur.execute('CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, description varchar(1000), status varchar(10))')
+    cur.execute('''CREATE TABLE IF NOT EXISTS tasks(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                description varchar(1000),
+                comment varchar(1000),
+                status varchar(10))''')
     conn.commit()
     cur.close()
     conn.close()
@@ -27,6 +32,13 @@ def task_descrip(message):
     # записывается описание задачи и запрашивается её стаус
     global description
     description = message.text.strip()
+    bot.send_message(message.chat.id, 'Укажите комментарий')
+    bot.register_next_step_handler(message, task_comment)
+
+def task_comment(message):
+    # записывается описание задачи и запрашивается комментарий к ней
+    global comment
+    comment = message.text.strip()
     bot.send_message(message.chat.id, 'Укажите статус')
     bot.register_next_step_handler(message, task_status)
 
@@ -34,10 +46,10 @@ def task_status(message):
     # записывается статус задачи
     status = message.text.strip()
 
-    conn = sqlite3.Connection('data.sqlite3')
+    conn = sqlite3.Connection('task_data.sqlite3')
     cur = conn.cursor()
 
-    cur.execute("INSERT INTO tasks (description, status) VALUES ('%s', '%s')" % (description, status))
+    cur.execute("INSERT INTO tasks (description, comment, status) VALUES ('%s', '%s', '%s')" % (description, comment, status))
     conn.commit()
     cur.close()
     conn.close()
@@ -46,7 +58,7 @@ def task_status(message):
 
     # создается кнопка просмотра данных
     # markup = telebot.types.InlineKeyboardMarkup()
-    # markup.add(telebot.types.InlineKeyboardButton('Список задач и статус', callback_data='tasks'))
+    # markup.add(telebot.types.InlineKeyboardButton('Список задач, комментарий и статус', callback_data='tasks'))
 
     # bot.send_message(message.chat.id, 'Задача зарегистрирована!', reply_markup=markup)
     
@@ -54,7 +66,7 @@ def task_status(message):
 @bot.message_handler(commands=['list'])
 def show_list(message):
     # создается ответ по команде
-    conn = sqlite3.Connection('data.sqlite3')
+    conn = sqlite3.Connection('task_data.sqlite3')
     cur = conn.cursor()
 
     cur.execute("SELECT * FROM tasks")
@@ -62,13 +74,14 @@ def show_list(message):
 
     info = ''
     for el in tasks:
-        info += f'Номер: {el[0]}\nОписание: {el[1]}\nСтатус: {el[2]}\n --- --- ---\nИзменить статус задачи можчно с помощью команты "/done"'
+        info += f'''Номер: {el[0]}\nОписание: {el[1]}\nКомментарий: {el[2]}\nСтатус: {el[3]}\n {15* '--- '} \n'''
         
     conn.commit()
     cur.close()
     conn.close()
 
     bot.send_message(message.chat.id, info)
+    bot.send_message(message.chat.id, f'Изменение статуса задачи команда "/done"')
 
 # =================ИЗМЕНЕНИЕ СТАТУСА ЗАДАЧ==================
 @bot.message_handler(commands=['done'])
@@ -89,7 +102,7 @@ def new_status(message):
     # записывается НОВЫЙ статус задачи
     new_status = message.text.strip()
 
-    conn = sqlite3.Connection('data.sqlite3')
+    conn = sqlite3.Connection('task_data.sqlite3')
     cur = conn.cursor()
 
     cur.execute('UPDATE tasks SET status == ? WHERE id == ?', (f'{new_status}', f'{task_num}'))
