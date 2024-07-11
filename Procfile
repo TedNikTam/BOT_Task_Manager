@@ -1,0 +1,1 @@
+worker: pthon BOT_Task_Manager.py
