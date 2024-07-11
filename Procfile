@@ -1,1 +1,1 @@
-worker: pthon BOT_Task_Manager.py
+worker: python BOT_Task_Manager.py
